@@ -2027,8 +2027,8 @@ On décide ici de retenir le modèle 2 (exponentiel) et de stocker les valeurs e
 
 ```{r}
 mod<-mod2
-map_dvf$prixm2_estim <- mod$fitted.values
-map_dvf$prixm2_resid <- mod$residuals
+map_dvf$prixm2_estim <- exp(mod$fitted.values)
+map_dvf$prixm2_resid <- map_dvf$prixm2-map_dvf$prixm2_estim
 ```
 
 ## Agrégation par commune 
