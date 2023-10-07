@@ -40,7 +40,7 @@ opts_chunk$set(echo=TRUE,
 
 
 
-# Stage Carthageo-Geoprisme 2023 {-}
+# Syllabus {-}
 
 
 
@@ -117,234 +117,233 @@ En option supplémentaire : Amiens (communauté d'agglomération)
 
 
 
-# RP1 : Agrégation sociale
-
-```{r , include=FALSE}
-myrep <-"data/Rennes/"
-```
-
-## Définir le sujet
-
-Soit le sujet : *Qui sont les nouveaux propriétaires ? Quel est leur niveau de qualification ?*
-
-### Définir le statut d'occupation 
-Propriétaire ? Locataire ? Occupant à titre gratuit ?
-
-### Définir la notion de "qualification" ?
-Le diplôme le plus élevé ? le nombre d'années d'étude ? 
-
-### Définir la date
-Année 2019 uniquement ? Résultats du RP 2019 (2017-2021) ? 
-
-### Définit la population cible
-Personnes installées récemment ? depuis quand ?
+# RP1 : Accquisition
 
 
+## Introduction
 
-
-## Formuler des questions ou des hypothèses
-
-Justes ou fausses, les hypothèses permettent de cadrer l'analyse.
-
-### Diplôme et propriété
-Les nouveaux propriétaires sont plus souvent diplômés.
-
-### Âge et propriété
-Les propriétaires sont plus âgés que les locataires.
-
-### Propriété et territoire
-Les propriétaires sont plus nombreux en zone rurale
-
-###  Logement social, âge et diplômes
-Les jeunes ménages sont locataires en ville avant de devnir propriétaires dans les zones périurbaines ou rurales.
-
-
-## Organiser le travail 
-
-Sutout dans le cadre d'un groupe !
-
-### Ne collecter que les données utiles pour répondre aux questions posées
-Afin de ne pas être tenté de partir dans toutes les directions
-
-### Archiver soigneusement les programmes et les résultats
-Afin de pouvoir reproduire ultérieurement les analyses sur une autre période, un autre territoire
-
-### Ne pas attendre d'avoir accumulé tous les résultats pour les commenter
-Car l'analyse peut suggérer des erreurs ou ouvrir de nouvelles pistes.
-
-### Partir des questions et non pas des outils
-Que signifie une réponses (42 ...) sans savoir quelle est la question ? 
-
-
-
-
-## Charger les données statistiques
-
-
-
-```{r, cache.comments=TRUE,comment=F,message=F, error=FALSE,echo=T}
-tab_ind<-readRDS(paste0(myrep,"AA_men.RDS"))
-head(tab_ind[,1:5],2)
-```
-
-
-## Préparation de l'analyse 
-
-
-- Soit la relation entre statut d'occupation (Y) et diplôme le plus élevé du chef de ménage (X). Il s'agit de deux variables **catégorielles** (= qualitatives) que l'on va typiquement mettre en relation à l'aide d'un **tableau de contingence** et d'un **test du chi-2**. L'analyse statistique est simple sous R mais il faut tenir compte de trois difficultés
-
-- Le choix de la **population de référence** est important. Ici on va sélectionner les ménages installés depuis moins de 3 ans
-
-- la sélection ou le regroupement  des **diplômes** est également important car cela va influer sur les résultats du test.
-
-- la **pondération des individus** doit également être prise en compte puisque le recensement est basé sur un sondage dans les zones urbaines
-
-
-## Sélection des individus et des variables
-
-
-
-```{r, cache.comments=TRUE,comment=F,message=F, error=FALSE,echo=T}
-#table(tab_ind$AGEMEN8)
-tab_sel<- tab_ind %>% 
-  filter(as.numeric(ANEM) < 3) %>%
-  select(ANEM, DIPLM,STOCD, IPONDL) 
-
-
-knitr::kable(head(tab_sel,4))
-```
-
-## Recodage des modalités
-
-
-
-On cherche le code des modalités dans le fichier des métadonnées
+Ce programme permet de préparer l'ensemble des données statistiques et cartographiques utiles pour l'étude d'une agglomération urbaine à partir du fichier ménage du recensement de population 2019. Il charge de très gros fichiers contenus dans un dossier temporaire **tmp** et en extrait les informations utiles pour les placer dans un dossier **data/nomagg** . Il a besoin en entrée du code et du nom de la commune centre ainsi que du chemin vers le dossier de stockage des résultats
 
 ```{r}
-meta<-readRDS(paste0(myrep,"men_meta.RDS"))
-metasel <- meta %>% 
-  filter(COD_VAR %in% c("STOCD"))
-kable(metasel[,c(1,3,4)])
+# Commune centre 
+codectr<-  "35238"  # Code
+namectr <- "Rennes"  # Nom
+
+# Dossier de stockage
+myrep <- "data/Rennes/"
+
+# Choix du fichier ménage et de ses métadonnées
+ficmen<-"tmp/FD_LOGEMTZC_2019.csv"
+ficmen_meta <-"tmp/Varmod_LOGEMT_2019.csv"
+
 ```
 
 
-On recode les modalités des deux variables en regroupant certaines.
+## Etape 1 : Données administratives
 
-```{r, cache.comments=TRUE,comment=F,message=F, error=FALSE,echo=T}
-tab_sel$STOCD<-as.factor(tab_sel$STOCD)
-levels(tab_sel$STOCD)<-c("Proprétaire","Locataire",
-                         "Locataire","Locataire",NA)
-tab_sel$DIPLM<-as.factor(tab_sel$DIPLM)
-levels(tab_sel$DIPLM) <- c("Aucun","Aucun","Aucun",
-                           "BEP","BEP","BEP", "BAC","BAC",
-                         "BAC+123","BAC+123","> BAC+3","> BAC+3",NA)
+On commence par récupérer les informations adminstratives sur la zone d'étude
 
-                        
-knitr::kable(head(tab_sel,3))
+### Chargement du fichier administatif
+
+```{r, eval=FALSE}
+adm<-read.table("tmp/maps/table-appartenance-geo-communes-23.csv",
+                sep=";", 
+                header=T, fileEncoding = "UTF-8",
+                quote = '"')
+head(adm)
 ```
 
-## Création du tableau de contingence non pondéré (FAUX)
+### Identification des codes de l'aire urbaine et de l'EPCI
 
-Le plus simple semble être l'instruction *table()*
+On extrait la ligne correspondant à notre commune centre et on en déduit le code de son epci et de son aire urbaine
 
+```{r, eval=FALSE}
+adm_ctr<-adm %>% filter(adm$CODGEO==codectr)
+adm_ctr
 
-```{r, cache.comments=TRUE,comment=F,message=F, error=FALSE,echo=T}
-tab_cont<-table(tab_sel$STOCD,tab_sel$DIPLM)
+my_EPCI <- adm_ctr$EPCI
+my_AA <- adm_ctr$AAV2020
 
-knitr::kable(addmargins(tab_cont))
 ```
 
+### Extraction des informations
 
-## Création du tableau de contingence pondéré (JUSTE)
+On extrait toutes les donnes relatives à notre aire urbaine et on les sauvegarde.
 
-On pondère avec *wtd.table()* du package *questionr*.
+```{r, eval=FALSE}
+AA_adm <- adm %>% filter(AAV2020 == my_AA)
+saveRDS(AA_adm, paste0(myrep,"AA_adm.RDS"))
 
-### programme
-```{r, cache.comments=TRUE,comment=F,message=F, error=FALSE,echo=T}
-library(questionr)
-tab_cont_wtd<-wtd.table(tab_sel$STOCD,tab_sel$DIPLM,
-                        weights = tab_sel$IPONDL)
+EPCI_adm <- adm %>% filter(EPCI == my_EPCI)
+saveRDS(EPCI_adm, paste0(myrep,"EPCI_adm.RDS"))
 
-knitr::kable(round(addmargins(tab_cont_wtd),0))
-```
-
-
-## Comparaison des résultats
-
-
-- Tableau non pondéré ... légèrement faux !
-
-```{r, cache.comments=TRUE,comment=F,message=F, error=FALSE,echo=F}
-tab_pct<-cprop(tab_cont)
-knitr::kable(tab_pct,digits=1)
-```
-
-- Tableau pondéré ... juste !
-```{r, cache.comments=TRUE,comment=F,message=F, error=FALSE,echo=F}
-tab_pct_wtd<-cprop(tab_cont_wtd)
-knitr::kable(tab_pct_wtd,digits=1)
+CTR_adm <- adm %>% filter(CODGEO == codectr)
+saveRDS(CTR_adm, paste0(myrep,"CTR_adm.RDS"))
 ```
 
 
-## Visualisation du tableau de contingence
+## Etape 2 : Données géométriques 
 
-On choisit l'orientation du tableau et on l'affiche avec plot()
+On va maintenant extraire les données géométriques relatives au contour des communes et des IRIS
 
-```{r, cache.comments=TRUE,comment=F,message=F, comment = F,error=FALSE,echo=T,fig.height=3,fig.width=6 }
-mytable<-wtd.table(tab_sel$DIPLM,tab_sel$STOCD,weights = tab_sel$IPONDL)
-plot(mytable)
+### Communes
+
+On charge le fichier des communes de France et on extrait uniquement celles de la zone d'étude.
+
+```{r, eval=FALSE}
+## Communes de France
+mapcom <- st_read("tmp/maps/COMMUNE.shp", quiet=T)
+
+## Aire urbaine
+AA_adm<-readRDS(paste0(myrep,"AA_adm.RDS"))
+AA_mapcom <- mapcom %>% filter(INSEE_COM %in% AA_adm$CODGEO)
+saveRDS(AA_mapcom,paste0(myrep,"AA_mapcom.RDS"))
+
+## EPCI
+EPCI_adm<-readRDS(paste0(myrep,"EPCI_adm.RDS"))
+EPCI_mapcom <- mapcom %>% filter(INSEE_COM %in% EPCI_adm$CODGEO)
+saveRDS(EPCI_mapcom,paste0(myrep,"EPCI_mapcom.RDS"))
+
+## Commune centre
+CTR_adm<-readRDS(paste0(myrep,"CTR_adm.RDS"))
+CTR_mapcom <- mapcom %>% filter(INSEE_COM %in% CTR_adm$CODGEO)
+saveRDS(CTR_mapcom,paste0(myrep,"CTR_mapcom.RDS"))
+
+
+
 ```
 
 
-## Visualisation améliorée du tableau de contingence
 
-Tant qu'à faire, on améliore la figure avec des paramètres supplémentaires : 
 
-```{r, cache.comments=TRUE,comment=F,message=F, comment = F,error=FALSE,echo=T, fig.height=4,fig.width=6}
-plot(mytable, 
-     main = "Propriété et diplôme dans l'aire urbaine de Rennes", 
-     sub = "Source : INSEE - RP 2019 - Ménages installés depuis - de 3 ans",  
-     col=c("lightyellow","lightgreen"))
+```{r}
+AA_mapcom<-readRDS(paste0(myrep,"AA_mapcom.RDS"))
+EPCI_mapcom<-readRDS(paste0(myrep,"EPCI_mapcom.RDS"))
+CTR_mapcom<-readRDS(paste0(myrep,"CTR_mapcom.RDS"))
+plot(AA_mapcom$geometry, col="lightyellow", main="zone d'étude")
+plot(EPCI_mapcom$geometry,col="orange", add=T)
+plot(CTR_mapcom$geometry,col="red", add=T)
 ```
 
-## Test du Chi-deux
 
 
-Ce test se réalise facilement sur le tableau de contingence avec l'instruction *chisq.test()* :
 
-```{r, cache.comments=TRUE,comment=F,message=F, comment = "",error=FALSE,echo=T}
-mytest<-chisq.test(mytable)
-mytest
+
+### IRIS
+
+On ne procède à l'extraction des IRIS que pour l'EPCI et la commune centre
+
+```{r, eval=F}
+## Communes de France
+mapiris <- st_read("tmp/maps/CONTOURS-IRIS.shp", quiet=T)
+
+
+## EPCI
+EPCI_adm<-readRDS(paste0(myrep,"EPCI_adm.RDS"))
+EPCI_mapiris <- mapiris %>% filter(INSEE_COM %in% EPCI_adm$CODGEO)
+saveRDS(EPCI_mapiris,paste0(myrep,"EPCI_mapiris.RDS"))
+
+## Commune centre
+CTR_adm<-readRDS(paste0(myrep,"CTR_adm.RDS"))
+CTR_mapiris <- mapiris %>% filter(INSEE_COM %in% CTR_adm$CODGEO)
+saveRDS(CTR_mapiris,paste0(myrep,"CTR_mapiris.RDS"))
+
+
+
 ```
 
-- **Interprétation** : La relation est très significative (p<0.001)
 
 
-## Visualisation des résidus
-
-Lorsque la relation est significative, on visualise les cases les plus exceptionnelles avec *mosaicplot( ..., shade = T)*
-```{r, cache.comments=TRUE,comment=F,message=F, comment = F,error=FALSE,echo=T, fig.height=4,fig.width=6}
-mosaicplot(mytable,  
-           main = "Propriété et diplôme dans l'aire urbaine de Rennes", 
-           sub = "Source : INSEE - RP 2019 - Ménages installés depuis - de 3 ans",
-           shade =T)
+```{r}
+EPCI_mapiris<-readRDS(paste0(myrep,"EPCI_mapiris.RDS"))
+CTR_mapiris<-readRDS(paste0(myrep,"CTR_mapiris.RDS"))
+plot(EPCI_mapiris$geometry, col="lightyellow", main="EPCI",border="gray50", lwd=0.4)
+plot(CTR_mapiris$geometry,col="orange", add=T, border="gray50", lwd=0.4)
+plot(EPCI_mapcom$geometry,col=NA, border="black",lwd=1,add=T)
 ```
 
-## Conclusion
-
-### Analyse sociologique
-On peut explorer toute une série de variables qui déterminent le fait pour un ménage d'être propriétaire ou locataire.
-
-### Analyse historique
-On peut étudier comment les facteurs déterminant l'accès à la propriété varient au cours du temps.
-
-### Analyse spatiale
-On peut étudier la part des propriétaires et des locataires en fonction du milieu urbain, périurbain ou rural.
-
----
 
 
-# RP2 : Agrégation territoriale
+## Etape 3 :  logements ordinaires en 2019
+
+Nous partirons des fichiers détail de l'INSEE car, à la différence des tableaux prédéfinis,  ils permettent virtuellement toutes les formes de croisement d'indicateurs. Ils sont évidemment beaucoup plus volumineux, mais ce sera justement l'occasion pour les étudiants en data mining d'être confrontés à des problèmes d'optimisation et de big data. On trouve leur description détaillée sur le site de l'INSEE 
+
+Compte-tenu de la taille des fichiers, nous travaillerons sur une partition de la France en zones
+
+
+- **Zone A** : Région Île-de-France (région 11) ;
+- **Zone B** : Régions Centre-Val de Loire (région 24), Bourgogne-Franche-Comté (région 27), Normandie (région 28) et Hauts-de-France (région 32) ;
+- **Zone C** : Régions Grand Est (région 44), Pays de la Loire (région 52) et Bretagne (région 53);
+- **Zone D** : Régions Nouvelle-Aquitaine (région 75) et Occitanie (région 76) ;
+- **Zone E** : Régions Auvergne-Rhônes-Alpes (région 84), Provence-Alpes-Côte d'Azur (région 93), Corse (région 94), Guadeloupe (région 01), Martinique (région 02), Guyane (région 03) et La Réunion (région 04).
+
+
+
+
+
+### Lecture du fichier des ménages
+
+Nous commençons par lire le fichiers de la zone qui nous intéresse (au format .csv). Nous utilisons pour cela la fonction *fread* du package **data.table** qui est très rapide mais qui commet une erreur sur le code communal qu'on doit corriger
+
+
+```{r, eval=FALSE}
+
+# Lit le fichier
+men<-fread(ficmen)
+
+
+# Ajoute la variable INSEE_COM en format caractère en rétablissant le zéro
+code <-as.character(men$COMMUNE)
+code[nchar(code)==4]<-paste0("0",code[nchar(code)==4])
+men$INSEE_COM<-code
+
+
+
+```
+
+
+
+### Extraction des ménages de la zone d'étude
+
+
+```{r, eval = FALSE}
+## Aire urbaine
+AA_adm<-readRDS(paste0(myrep,"AA_adm.RDS"))
+AA_men <- men %>% filter(INSEE_COM %in% AA_adm$CODGEO)
+saveRDS(AA_men,paste0(myrep,"AA_men.RDS"))
+
+## EPCI
+EPCI_adm<-readRDS(paste0(myrep,"EPCI_adm.RDS"))
+EPCI_men <- men %>% filter(INSEE_COM %in% EPCI_adm$CODGEO)
+saveRDS(EPCI_men,paste0(myrep,"EPCI_men.RDS"))
+
+## Commune centre
+CTR_adm<-readRDS(paste0(myrep,"CTR_adm.RDS"))
+CTR_men <- men %>% filter(INSEE_COM %in% CTR_adm$CODGEO)
+saveRDS(CTR_men,paste0(myrep,"CTR_men.RDS"))
+
+```
+
+
+### Chargement  des méta-données
+
+Il ne faut surtout pas oublier le fichier des métadonnées qui va permettre de recoder facilement tous les facteurs et de décoder les chiffres correspondant aux classes. On va donc le transformer au format R puis l'enregistrer également dans le dossier data.  On élimine toutefois les codes des variables COMMUNES, IRIS et TRIRIS qui prennent trop de place.
+
+
+```{r, eval = FALSE}
+# Lecture du fichier de métadonnées
+meta<-fread(ficmen_meta)
+
+# Elimine les modalités IRIS, COMMUNE et TRIRIS
+meta <-meta %>% filter(!(COD_VAR %in% c("COMMUNE", "IRIS","TRIRIS")))
+
+# Enregistrement dans le dossier data
+saveRDS(object = meta,
+        file = paste0(myrep,"men_meta.RDS"))
+```
+
+
+# RP2 : Agrégation 
 
 
 ##  Le format sf (spatial features)
@@ -593,7 +592,7 @@ plot(map_com_tab[,"Maison_pct"])
 
 
 
-# RP3 : Cartographie statique
+# RP3 : Cartographie
 
 ##  Le package map_sf
 
@@ -909,7 +908,7 @@ mf_layout(title = "Les nouveaux propriétaires de maisons",
 
 
 
-# DVF1 :  Acquisition des données
+# DVF1 :  Acquisition
 
 ## Introduction
 
@@ -1025,7 +1024,7 @@ L'opération s'execute en un peu moins d'une minute dans cet exemple. Mais il pe
 
 
 
-# DVF2 :  Nettoyage des données
+# DVF2 : Nettoyage
 
 ## Introduction
 
@@ -1294,7 +1293,7 @@ dim(DVFOK)[1]
 ---
 
 
-# DFVF 3 : Cartographie
+# DVF3 : Cartographie
 
 
 ## Retour sur sf
@@ -1593,4 +1592,534 @@ mf_map(map_iris_dvf,  type = "prop",
 mf_layout(title = "Les ventes de maison de 2013 à 2020",
         frame = TRUE, credits = "Sources : IGN et DVF", 
         arrow = F )
+```
+
+
+
+# MOD1 : Analyse sociologique / Chi2
+
+```{r , include=FALSE}
+myrep <-"data/Rennes/"
+```
+
+On se propose dans un premier temps de modéliser des caractéristiques **non-spatiales** des individus à partir des données du RP 2019. On va considérer ici uniquement des attributs catégoriels ce qui nous conduira à formuler des hypothèses aboutissant à la création d'un **tableau de contingence** et la réalisation d'un **test du chi-2**. 
+
+## Définir le sujet
+
+Soit le sujet : *Qui sont les nouveaux propriétaires ? Quel est leur niveau de qualification ?*
+
+### Définir le statut d'occupation 
+Propriétaire ? Locataire ? Occupant à titre gratuit ?
+
+### Définir la notion de "qualification" ?
+Le diplôme le plus élevé ? le nombre d'années d'étude ? 
+
+### Définir la date
+Année 2019 uniquement ? Résultats du RP 2019 (2017-2021) ? 
+
+### Définir la population cible
+Personnes installées récemment ? depuis quand ?
+
+### Définir la zone d'étude
+Commune centre ? Agglomération ? Aire urbaine ? ...
+
+
+## Formuler des hypothèses
+
+Justes ou fausses, les hypothèses permettent de cadrer l'analyse. Elles peuvent faire intervenir plusieurs variables 
+
+### Diplôme et propriété
+Les nouveaux propriétaires sont plus souvent diplômés.
+
+### Âge et propriété
+Les propriétaires sont plus âgés que les locataires.
+
+### Propriété et territoire
+Les propriétaires sont plus nombreux en zone rurale
+
+###  Propriété, âge, diplôme, territoire
+Les jeunes ménages sont locataires en ville avant de devenir propriétaires dans les zones périurbaines ou rurales. Ils sont plus ou moins proches du centre selon leur niveau de qualification qui détermine à long terme leur revenu ...
+
+
+
+## Charger les données
+
+On charge ici les données ménages de l'aire urbaine. 
+
+
+```{r, cache.comments=TRUE,comment=F,message=F, error=FALSE,echo=T}
+tab_ind<-readRDS(paste0(myrep,"AA_men.RDS"))
+head(tab_ind[,1:5],2)
+```
+
+
+## Préparer l'analyse 
+
+
+- Soit la relation entre statut d'occupation (Y) et diplôme le plus élevé du chef de ménage (X). Il s'agit de deux variables **catégorielles** (= qualitatives) que l'on va typiquement mettre en relation à l'aide d'un **tableau de contingence** et d'un **test du chi-2**. L'analyse statistique est simple sous R mais il faut tenir compte de trois difficultés
+
+- Le choix de la **population de référence** est important. Ici on va sélectionner les ménages installés depuis moins de 3 ans
+
+- la sélection ou le regroupement  des **diplômes** est également important car cela va influer sur les résultats du test.
+
+- la **pondération des individus** doit également être prise en compte puisque le recensement est basé sur un sondage dans les zones urbaines
+
+
+## Sélection des individus et des variables
+
+
+```{r, cache.comments=TRUE,comment=F,message=F, error=FALSE,echo=T}
+tab_sel<- tab_ind %>% 
+  filter(as.numeric(ANEM) < 3) %>%
+  select(INSEE_COM, ANEM, DIPLM,STOCD, IPONDL) 
+
+
+knitr::kable(head(tab_sel,4))
+```
+
+## Recodage des modalités
+
+On cherche le code des modalités dans le fichier des métadonnées
+
+```{r}
+meta<-readRDS(paste0(myrep,"men_meta.RDS"))
+metasel <- meta %>% 
+  filter(COD_VAR %in% c("STOCD", "DIPLM"))
+kable(metasel[,c(1,3,4)])
+```
+
+
+On recode les modalités des deux variables en regroupant certaines.
+
+```{r, cache.comments=TRUE,comment=F,message=F, error=FALSE,echo=T}
+tab_sel$STOCD<-as.factor(tab_sel$STOCD)
+levels(tab_sel$STOCD)<-c("Proprétaire","Locataire",
+                         "Locataire","Locataire",NA)
+tab_sel$DIPLM<-as.factor(tab_sel$DIPLM)
+levels(tab_sel$DIPLM) <- c("Aucun","Aucun","Aucun",
+                           "BEP","BEP","BEP", "BAC","BAC",
+                         "BAC+123","BAC+123","> BAC+3","> BAC+3",NA)
+
+                        
+knitr::kable(head(tab_sel,3))
+```
+
+## Tableau de contingence  (FAUX)
+
+Le plus simple semble être l'instruction *table()*
+
+
+```{r, cache.comments=TRUE,comment=F,message=F, error=FALSE,echo=T}
+tab_cont<-table(tab_sel$STOCD,tab_sel$DIPLM)
+
+knitr::kable(addmargins(tab_cont))
+```
+
+
+## Tableau de contingence (JUSTE)
+
+On pondère avec *wtd.table()* du package *questionr*.
+
+### programme
+```{r, cache.comments=TRUE,comment=F,message=F, error=FALSE,echo=T}
+library(questionr)
+tab_cont_wtd<-wtd.table(tab_sel$STOCD,tab_sel$DIPLM,
+                        weights = tab_sel$IPONDL)
+
+knitr::kable(round(addmargins(tab_cont_wtd),0))
+```
+
+
+## Comparaison des résultats
+
+
+- Tableau non pondéré ... légèrement faux !
+
+```{r, cache.comments=TRUE,comment=F,message=F, error=FALSE,echo=F}
+tab_pct<-cprop(tab_cont)
+knitr::kable(tab_pct,digits=1)
+```
+
+- Tableau pondéré ... juste !
+```{r, cache.comments=TRUE,comment=F,message=F, error=FALSE,echo=F}
+tab_pct_wtd<-cprop(tab_cont_wtd)
+knitr::kable(tab_pct_wtd,digits=1)
+```
+
+
+## Visualisation du tableau de contingence
+
+On choisit l'orientation du tableau et on l'affiche avec plot()
+
+```{r, cache.comments=TRUE,comment=F,message=F, comment = F,error=FALSE,echo=T}
+mytable<-wtd.table(tab_sel$DIPLM,tab_sel$STOCD,weights = tab_sel$IPONDL)
+plot(mytable)
+```
+
+
+Tant qu'à faire, on améliore la figure avec des paramètres supplémentaires : 
+
+```{r, cache.comments=TRUE,comment=F,message=F, comment = F,error=FALSE,echo=T}
+plot(mytable, 
+     main = "Propriété et diplôme dans l'aire urbaine", 
+     sub = "Source : INSEE - RP 2019 - Ménages installés depuis - de 3 ans",  
+     col=c("lightyellow","lightgreen"))
+```
+
+## Test du Chi-deux
+
+
+Ce test se réalise facilement sur le tableau de contingence avec l'instruction *chisq.test()* :
+
+```{r, cache.comments=TRUE,comment=F,message=F, comment = "",error=FALSE,echo=T}
+mytest<-chisq.test(mytable)
+mytest
+```
+
+- **Interprétation** : La relation est très significative (p<0.001)
+
+
+## Prolongements
+
+On peut introduire toute une série de variantes à partir de ce premier programme. Par exemple, si on retire la commune-centre, les résultats sont assez différents :
+
+
+```{r}
+tab_sel2<- tab_sel %>% 
+  filter(INSEE_COM != codectr)
+
+mytable<-wtd.table(tab_sel2$DIPLM,tab_sel2$STOCD,weights = tab_sel2$IPONDL)
+
+plot(mytable, 
+     main = "Propriété et diplôme hors commune-centre", 
+     sub = "Source : INSEE - RP 2019 - Ménages installés depuis - de 3 ans",  
+     col=c("lightyellow","lightgreen"))
+
+chisq.test(mytable)
+```
+
+A vous de deviner pourquoi :-)
+
+
+---
+
+
+
+# MOD2 : Analyse spatiale / Gradient
+
+On se propose d'analyser la variation d'un phénomène quantitatif (le prix de vente des maisons en € par m2) en fonction de la distance à un point remarquable (le centre de l'agglomération). On fait l'hypothèse que ce prix correspond à un **gradient de décroissance**, conformément aux théories de la rente foncière. Pour modéliser ce gradient, nous ferons appels à un **modèle de régression** linéaire ou non-linéaire.
+
+
+## Formuler l'hypothèse
+
+Soit l'ensemble des ventes effectuées dans un rayon de 50 km autour d'une agglomération. Existe-t-il une relation entre (Y) le prix de vente mesuré en € par m2 de surface habitable et (X) la distance au point central de l'agglomération ? 
+
+N.B. Nous retirons la commune centre de l'analyse car on suppose que son comportement interne obéit à une logique différente
+
+
+## Définir l'espace d'étude
+
+Nous allons retenir la distance à vol d'oiseau entre chaque point ou a eu lieu une vente et le centre de l'agglomération que l'on fixera en fonction de notre connaissance du terrain.
+
+```{r paramgradi, echo=T}
+# Commune centre 
+codectr<-  "35238"  # Code
+namectr <- "Rennes"  # Nom
+
+# Choix du rayon de collecte des dvf (en mètres)
+rayon <- 50000
+
+# Dossier de stockage
+myrep <- "data/Rennes/"
+
+# Fichier dvf nettoyé
+mydvf <-"dvf_clean.RDS"
+```
+
+## Calculer les distances au centre
+
+On doit ajouter à notre fichier dvf la distance au point central retenu.
+
+```{r}
+## Fichier des dvf
+dvf<-readRDS(paste0(myrep,mydvf))
+
+# Aire urbaine
+map_com<-readRDS(paste0(myrep,"AA_mapcom.RDS"))
+
+# Selection des dvf
+dvf<-dvf %>% filter(INSEE_COM %in% map_com$INSEE_COM) %>%
+             filter(INSEE_COM != codectr)
+
+# Transformation cartographique des dvf
+map_dvf <- st_as_sf(dvf,coords =c("longitude","latitude")) 
+st_crs(map_dvf)<-4326
+map_dvf<-st_transform(map_dvf,2154)
+
+## Commune centre => centroïde
+map_ctr <-readRDS(paste0(myrep,"CTR_mapcom.RDS"))
+map_ctr <-st_centroid(map_ctr)
+
+## Calcul de la distance
+map_dvf$dist<-as.numeric(st_distance(map_dvf,map_ctr))/1000
+
+## Visualisation rapide
+plot(map_dvf[,"dist"])
+```
+
+
+
+## Modèle linéaire
+
+On teste l'existence d'un modèle linéaire en fixant les paramètres suivants :
+
+### Paramètres
+
+```{r}
+Y <-map_dvf$prixm2
+X <-map_dvf$dist
+nomY <- "Prix au m2"
+nomX <- "Distance en km"
+model<- "Modèle Linéaire : Y = aX+b"
+```
+
+### Ajustement
+
+```{r}
+mod1 <- lm(Y~X)
+summary(mod1)
+```
+
+### Visualisation
+
+```{r}
+plot(X,Y,
+     xlab = nomX,
+     ylab = nomY,
+     main = model,
+     pch=20,
+     col="red",
+     cex=0.1,
+     sub = " Source : DVF 2013-2020"
+     )
+
+abline(mod1, col="blue", lwd=2)
+```
+
+
+## Modèle exponentiel
+
+On teste l'existence d'un modèle exponetielle en fixant les paramètres suivants :
+
+### Paramètres
+
+```{r}
+Y <-log(map_dvf$prixm2)
+X <-map_dvf$dist
+nomY <- "log(Prix au m2)"
+nomX <- "Distance en km"
+model<- "Modèle Exponentiel : log(Y) = aX+b"
+```
+
+### Ajustement
+
+```{r}
+mod2 <- lm(Y~X)
+summary(mod2)
+```
+
+### Visualisation
+
+```{r}
+plot(X,Y,
+     xlab = nomX,
+     ylab = nomY,
+     main = model,
+     pch=20,
+     col="red",
+     cex=0.1,
+     sub = " Source : DVF 2013-2020"
+     )
+
+abline(mod2, col="blue", lwd=2)
+```
+
+
+
+## Modèle logarithmique
+
+On teste l'existence d'un modèle logarithmique en fixant les paramètres suivants :
+
+### Paramètres
+
+```{r}
+Y <-map_dvf$prixm2
+X <-log(map_dvf$dist)
+nomY <- "Prix au m2"
+nomX <- "log(Distance en km)"
+model<- "Modèle Logarithmique : Y = a.log(X)+b"
+```
+
+### Ajustement
+
+```{r}
+mod3 <- lm(Y~X)
+summary(mod3)
+```
+
+### Visualisation
+
+```{r}
+plot(X,Y,
+     xlab = nomX,
+     ylab = nomY,
+     main = model,
+     pch=20,
+     col="red",
+     cex=0.1,
+     sub = " Source : DVF 2013-2020"
+     )
+
+abline(mod3, col="blue", lwd=2)
+```
+
+
+## Modèle puissance
+
+On teste l'existence d'un modèle puissance en fixant les paramètres suivants :
+
+### Paramètres
+
+```{r}
+Y <-log(map_dvf$prixm2)
+X <-log(map_dvf$dist)
+nomY <- "log(Prix au m2)"
+nomX <- "log(Distance en km)"
+model<- "Modèle Logarithmique : Y = a.log(X)+b"
+```
+
+### Ajustement
+
+```{r}
+mod4 <- lm(Y~X)
+summary(mod4)
+```
+
+### Visualisation
+
+```{r}
+plot(X,Y,
+     xlab = nomX,
+     ylab = nomY,
+     main = model,
+     pch=20,
+     col="red",
+     cex=0.1,
+     sub = " Source : DVF 2013-2020"
+     )
+
+abline(mod4, col="blue", lwd=2)
+```
+
+## Choix du meilleur modèle
+
+On décide ici de retenir le modèle 2 (exponentiel) et de stocker les valeurs estimées et résiduelles des prix au m2.
+
+```{r}
+mod<-mod3
+map_dvf$prixm2_estim <- mod$fitted.values
+map_dvf$prixm2_resid <- mod$residuals
+```
+
+## Agrégation par commune 
+
+On agrège les valeurs estimées et résiduelles par commune
+
+```{r}
+mod_com <- st_drop_geometry(map_dvf) %>%
+              group_by(INSEE_COM) %>%
+              summarise(nb=n(),
+                        prixm2 = mean(prixm2),
+                        prixm2_estim = mean(prixm2_estim),
+                        prixm2_resid = mean(prixm2_resid)) %>%
+              arrange(prixm2_resid)
+
+```
+
+On en déduit les communes où le prix est plus bas que ce que laisserait prévoir la distance au centre :
+
+```{r}
+kable(head(mod_com), digits=0)
+
+```
+
+
+Et celles où le prix est plus élevé que ce que laisserait prévoir la distance au centre 
+
+```{r}
+kable(tail(mod_com),digits=0)
+```
+
+## Cartographie des résultats
+
+En se limitant à l'aire urbaine, on va visualiser les résultats du modèle. On commence par effectuer la jointure entre les résultats du modèle de régression et le fonds de carte des communes : 
+
+```{r}
+map_com<-map_com %>%
+         left_join(mod_com)
+
+```
+
+On peut alors cartographier les prix observés et théoriques :
+
+```{r}
+mybreaks <-c(1000,1500, 1750, 2000, 2250, 2500, 2750,  3000, 6000)
+mypal <- brewer.pal(n = 8, name="YlOrRd")
+
+par(mfrow = c(1,2))
+mf_map(map_com, 
+       type = "choro",
+       var="prixm2_estim",
+       breaks=mybreaks,
+       pal=mypal,
+       leg_val_rnd = 0,
+       col_na = "gray80",
+       leg_pos = "topleft")
+mf_layout("Prix théoriques", 
+          arrow=F, frame=T,
+          credits = "Source : DVF, 2013-2020")
+
+
+mf_map(map_com, 
+       type = "choro",
+       var="prixm2",
+       breaks=mybreaks,
+       pal=mypal,
+       leg_val_rnd = 0,
+        col_na = "gray80",
+       leg_pos = "topleft")
+mf_layout("Prix observés",
+          arrow=F, frame=T,
+          credits = "Source : DVF, 2013-2020")
+```
+
+Et en déduire la carte des résidus :
+
+```{r}
+mybreaks <-c(-700, -500, -300,-100,100,300,500,700)
+mypal <- brewer.pal(n = 7, name="RdBu")
+par(mfrow = c(1,1))
+mf_map(map_com, 
+       type = "choro",
+       var="prixm2_resid",
+       breaks=mybreaks,
+       pal=mypal,
+       col_na = "gray80",
+       leg_val_rnd = 0,
+       leg_pos = "topleft")
+mf_layout("Prix résiduels", 
+          arrow=F, frame=T,
+          credits = "Source : DVF, 2013-2020")
+
+
 ```

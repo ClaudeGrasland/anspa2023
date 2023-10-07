@@ -1,0 +1,243 @@
+---
+title: "Préparation des données"
+author: "Claude Grasland"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# RP1 : Accquisition des données
+
+```{r}
+library(knitr)
+library(dplyr)
+library(data.table)
+library(readr)
+library(sf)
+library(ggplot2)
+library(mapsf)
+```
+
+## Introduction
+
+Ce programme permet de préparer l'ensemble des données statistiques et cartographiques utiles pour l'étude d'une agglomération urbaine à partir du fichier ménage du recensement de population 2019. Il charge de très gros fichiers contenus dans un dossier temporaire **tmp** et en extrait les informations utiles pour les placer dans un dossier **data/nomagg** . Il a besoin en entrée du code et du nom de la commune centre ainsi que du chemin vers le dossier de stockage des résultats
+
+```{r paramètres}
+# Commune centre 
+codectr<-  "35238"  # Code
+namectr <- "Rennes"  # Nom
+
+# Dossier de stockage
+myrep <- "data/Rennes/"
+
+# Choix du fichier ménage et de ses métadonnées
+ficmen<-"tmp/FD_LOGEMTZC_2019.csv"
+ficmen_meta <-"tmp/Varmod_LOGEMT_2019.csv"
+
+```
+
+
+## Etape 1 : Données administratives
+
+On commence par récupérer les informations adminstratives sur la zone d'étude
+
+### Chargement du fichier administatif
+
+```{r, eval=FALSE}
+adm<-read.table("tmp/maps/table-appartenance-geo-communes-23.csv",
+                sep=";", 
+                header=T, fileEncoding = "UTF-8",
+                quote = '"')
+head(adm)
+```
+
+### Identification des codes de l'aire urbaine et de l'EPCI
+
+On extrait la ligne correspondant à notre commune centre et on en déduit le code de son epci et de son aire urbaine
+
+```{r, eval=FALSE}
+adm_ctr<-adm %>% filter(adm$CODGEO==codectr)
+adm_ctr
+
+my_EPCI <- adm_ctr$EPCI
+my_AA <- adm_ctr$AAV2020
+
+```
+
+### Extraction des informations
+
+On extrait toutes les donnes relatives à notre aire urbaine et on les sauvegarde.
+
+```{r, eval=FALSE}
+AA_adm <- adm %>% filter(AAV2020 == my_AA)
+saveRDS(AA_adm, paste0(myrep,"AA_adm.RDS"))
+
+EPCI_adm <- adm %>% filter(EPCI == my_EPCI)
+saveRDS(EPCI_adm, paste0(myrep,"EPCI_adm.RDS"))
+
+CTR_adm <- adm %>% filter(CODGEO == codectr)
+saveRDS(CTR_adm, paste0(myrep,"CTR_adm.RDS"))
+```
+
+
+## Etape 2 : Données géométriques 
+
+On va maintenant extraire les données géométriques relatives au contour des communes et des IRIS
+
+### Communes
+
+On charge le fichier des communes de France et on extrait uniquement celles de la zone d'étude.
+
+```{r, eval=FALSE}
+## Communes de France
+mapcom <- st_read("tmp/maps/COMMUNE.shp", quiet=T)
+
+## Aire urbaine
+AA_adm<-readRDS(paste0(myrep,"AA_adm.RDS"))
+AA_mapcom <- mapcom %>% filter(INSEE_COM %in% AA_adm$CODGEO)
+saveRDS(AA_mapcom,paste0(myrep,"AA_mapcom.RDS"))
+
+## EPCI
+EPCI_adm<-readRDS(paste0(myrep,"EPCI_adm.RDS"))
+EPCI_mapcom <- mapcom %>% filter(INSEE_COM %in% EPCI_adm$CODGEO)
+saveRDS(EPCI_mapcom,paste0(myrep,"EPCI_mapcom.RDS"))
+
+## Commune centre
+CTR_adm<-readRDS(paste0(myrep,"CTR_adm.RDS"))
+CTR_mapcom <- mapcom %>% filter(INSEE_COM %in% CTR_adm$CODGEO)
+saveRDS(CTR_mapcom,paste0(myrep,"CTR_mapcom.RDS"))
+
+
+
+```
+
+
+
+
+```{r}
+AA_mapcom<-readRDS(paste0(myrep,"AA_mapcom.RDS"))
+EPCI_mapcom<-readRDS(paste0(myrep,"EPCI_mapcom.RDS"))
+CTR_mapcom<-readRDS(paste0(myrep,"CTR_mapcom.RDS"))
+plot(AA_mapcom$geometry, col="lightyellow", main="zone d'étude")
+plot(EPCI_mapcom$geometry,col="orange", add=T)
+plot(CTR_mapcom$geometry,col="red", add=T)
+```
+
+
+
+
+
+### IRIS
+
+On ne procède à l'extraction des IRIS que pour l'EPCI et la commune centre
+
+```{r, eval=F}
+## Communes de France
+mapiris <- st_read("tmp/maps/CONTOURS-IRIS.shp", quiet=T)
+
+
+## EPCI
+EPCI_adm<-readRDS(paste0(myrep,"EPCI_adm.RDS"))
+EPCI_mapiris <- mapiris %>% filter(INSEE_COM %in% EPCI_adm$CODGEO)
+saveRDS(EPCI_mapiris,paste0(myrep,"EPCI_mapiris.RDS"))
+
+## Commune centre
+CTR_adm<-readRDS(paste0(myrep,"CTR_adm.RDS"))
+CTR_mapiris <- mapiris %>% filter(INSEE_COM %in% CTR_adm$CODGEO)
+saveRDS(CTR_mapiris,paste0(myrep,"CTR_mapiris.RDS"))
+
+
+
+```
+
+
+
+```{r}
+EPCI_mapiris<-readRDS(paste0(myrep,"EPCI_mapiris.RDS"))
+CTR_mapiris<-readRDS(paste0(myrep,"CTR_mapiris.RDS"))
+plot(EPCI_mapiris$geometry, col="lightyellow", main="EPCI",border="gray50", lwd=0.4)
+plot(CTR_mapiris$geometry,col="orange", add=T, border="gray50", lwd=0.4)
+plot(EPCI_mapcom$geometry,col=NA, border="black",lwd=1,add=T)
+```
+
+
+
+## Etape 3 :  logements ordinaires en 2019
+
+Nous partirons des fichiers détail de l'INSEE car, à la différence des tableaux prédéfinis,  ils permettent virtuellement toutes les formes de croisement d'indicateurs. Ils sont évidemment beaucoup plus volumineux, mais ce sera justement l'occasion pour les étudiants en data mining d'être confrontés à des problèmes d'optimisation et de big data. On trouve leur description détaillée sur le site de l'INSEE 
+
+Compte-tenu de la taille des fichiers, nous travaillerons sur une partition de la France en zones
+
+
+- **Zone A** : Région Île-de-France (région 11) ;
+- **Zone B** : Régions Centre-Val de Loire (région 24), Bourgogne-Franche-Comté (région 27), Normandie (région 28) et Hauts-de-France (région 32) ;
+- **Zone C** : Régions Grand Est (région 44), Pays de la Loire (région 52) et Bretagne (région 53);
+- **Zone D** : Régions Nouvelle-Aquitaine (région 75) et Occitanie (région 76) ;
+- **Zone E** : Régions Auvergne-Rhônes-Alpes (région 84), Provence-Alpes-Côte d'Azur (région 93), Corse (région 94), Guadeloupe (région 01), Martinique (région 02), Guyane (région 03) et La Réunion (région 04).
+
+
+
+
+
+### Lecture du fichier des ménages
+
+Nous commençons par lire le fichiers de la zone qui nous intéresse (au format .csv). Nous utilisons pour cela la fonction *fread* du package **data.table** qui est très rapide mais qui commet une erreur sur le code communal qu'on doit corriger
+
+
+```{r, eval=FALSE}
+
+# Lit le fichier
+men<-fread(ficmen)
+
+
+# Ajoute la variable INSEE_COM en format caractère en rétablissant le zéro
+code <-as.character(men$COMMUNE)
+code[nchar(code)==4]<-paste0("0",code[nchar(code)==4])
+men$INSEE_COM<-code
+
+
+
+```
+
+
+
+### Extraction des ménages de la zone d'étude
+
+
+```{r, eval = FALSE}
+## Aire urbaine
+AA_adm<-readRDS(paste0(myrep,"AA_adm.RDS"))
+AA_men <- men %>% filter(INSEE_COM %in% AA_adm$CODGEO)
+saveRDS(AA_men,paste0(myrep,"AA_men.RDS"))
+
+## EPCI
+EPCI_adm<-readRDS(paste0(myrep,"EPCI_adm.RDS"))
+EPCI_men <- men %>% filter(INSEE_COM %in% EPCI_adm$CODGEO)
+saveRDS(EPCI_men,paste0(myrep,"EPCI_men.RDS"))
+
+## Commune centre
+CTR_adm<-readRDS(paste0(myrep,"CTR_adm.RDS"))
+CTR_men <- men %>% filter(INSEE_COM %in% CTR_adm$CODGEO)
+saveRDS(CTR_men,paste0(myrep,"CTR_men.RDS"))
+
+```
+
+
+### Chargement  des méta-données
+
+Il ne faut surtout pas oublier le fichier des métadonnées qui va permettre de recoder facilement tous les facteurs et de décoder les chiffres correspondant aux classes. On va donc le transformer au format R puis l'enregistrer également dans le dossier data.  On élimine toutefois les codes des variables COMMUNES, IRIS et TRIRIS qui prennent trop de place.
+
+
+```{r, eval = FALSE}
+# Lecture du fichier de métadonnées
+meta<-fread(ficmen_meta)
+
+# Elimine les modalités IRIS, COMMUNE et TRIRIS
+meta <-meta %>% filter(!(COD_VAR %in% c("COMMUNE", "IRIS","TRIRIS")))
+
+# Enregistrement dans le dossier data
+saveRDS(object = meta,
+        file = paste0(myrep,"men_meta.RDS"))
+```
+
+
+

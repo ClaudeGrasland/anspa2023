@@ -1,0 +1,347 @@
+---
+title: "Analyse spatiale et territoriale"
+author: "Claude Grasland, Université de Paris"
+subtitle: Formation Carthageo-Geoprisme 2023
+output:
+  slidy_presentation: default
+  beamer_presentation:
+    colortheme: beaver
+    fonttheme: structurebold
+    theme: Madrid
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(xtable)
+library(survey)
+library(knitr)
+library(dplyr)
+library(tidyr)
+library(questionr)
+library(sf)
+library(RColorBrewer)
+library(mapsf)
+
+myrep <-"data/Rennes/"
+```
+
+
+# MOD2 : Analyse spatiale / Gradient
+
+On se propose d'analyser la variation d'un phénomène quantitatif (le prix de vente des maisons en € par m2) en fonction de la distance à un point remarquable (le centre de l'agglomération). On fait l'hypothèse que ce prix correspond à un **gradient de décroissance**, conformément aux théories de la rente foncière. Pour modéliser ce gradient, nous ferons appels à un **modèle de régression** linéaire ou non-linéaire.
+
+
+## Formuler l'hypothèse
+
+Soit l'ensemble des ventes effectuées dans un rayon de 50 km autour d'une agglomération. Existe-t-il une relation entre (Y) le prix de vente mesuré en € par m2 de surface habitable et (X) la distance au point central de l'agglomération ? 
+
+N.B. Nous retirons la commune centre de l'analyse car on suppose que son comportement interne obéit à une logique différente
+
+
+## Définir l'espace d'étude
+
+Nous allons retenir la distance à vol d'oiseau entre chaque point ou a eu lieu une vente et le centre de l'agglomération que l'on fixera en fonction de notre connaissance du terrain.
+
+```{r paramgradi, echo=T}
+# Commune centre 
+codectr<-  "35238"  # Code
+namectr <- "Rennes"  # Nom
+
+# Choix du rayon de collecte des dvf (en mètres)
+rayon <- 50000
+
+# Dossier de stockage
+myrep <- "data/Rennes/"
+
+# Fichier dvf nettoyé
+mydvf <-"dvf_clean.RDS"
+```
+
+## Calculer les distances au centre
+
+On doit ajouter à notre fichier dvf la distance au point central retenu.
+
+```{r}
+## Fichier des dvf
+dvf<-readRDS(paste0(myrep,mydvf))
+
+# Aire urbaine
+map_com<-readRDS(paste0(myrep,"AA_mapcom.RDS"))
+
+# Selection des dvf
+dvf<-dvf %>% filter(INSEE_COM %in% map_com$INSEE_COM) %>%
+             filter(INSEE_COM != codectr)
+
+# Transformation cartographique des dvf
+map_dvf <- st_as_sf(dvf,coords =c("longitude","latitude")) 
+st_crs(map_dvf)<-4326
+map_dvf<-st_transform(map_dvf,2154)
+
+## Commune centre => centroïde
+map_ctr <-readRDS(paste0(myrep,"CTR_mapcom.RDS"))
+map_ctr <-st_centroid(map_ctr)
+
+## Calcul de la distance
+map_dvf$dist<-as.numeric(st_distance(map_dvf,map_ctr))/1000
+
+## Visualisation rapide
+plot(map_dvf[,"dist"])
+```
+
+
+
+## Modèle linéaire
+
+On teste l'existence d'un modèle linéaire en fixant les paramètres suivants :
+
+### Paramètres
+
+```{r}
+Y <-map_dvf$prixm2
+X <-map_dvf$dist
+nomY <- "Prix au m2"
+nomX <- "Distance en km"
+model<- "Modèle Linéaire : Y = aX+b"
+```
+
+### Ajustement
+
+```{r}
+mod1 <- lm(Y~X)
+summary(mod1)
+```
+
+### Visualisation
+
+```{r}
+plot(X,Y,
+     xlab = nomX,
+     ylab = nomY,
+     main = model,
+     pch=20,
+     col="red",
+     cex=0.1,
+     sub = " Source : DVF 2013-2020"
+     )
+
+abline(mod1, col="blue", lwd=2)
+```
+
+
+## Modèle exponentiel
+
+On teste l'existence d'un modèle exponetielle en fixant les paramètres suivants :
+
+### Paramètres
+
+```{r}
+Y <-log(map_dvf$prixm2)
+X <-map_dvf$dist
+nomY <- "log(Prix au m2)"
+nomX <- "Distance en km"
+model<- "Modèle Exponentiel : log(Y) = aX+b"
+```
+
+### Ajustement
+
+```{r}
+mod2 <- lm(Y~X)
+summary(mod2)
+```
+
+### Visualisation
+
+```{r}
+plot(X,Y,
+     xlab = nomX,
+     ylab = nomY,
+     main = model,
+     pch=20,
+     col="red",
+     cex=0.1,
+     sub = " Source : DVF 2013-2020"
+     )
+
+abline(mod2, col="blue", lwd=2)
+```
+
+
+
+## Modèle logarithmique
+
+On teste l'existence d'un modèle logarithmique en fixant les paramètres suivants :
+
+### Paramètres
+
+```{r}
+Y <-map_dvf$prixm2
+X <-log(map_dvf$dist)
+nomY <- "Prix au m2"
+nomX <- "log(Distance en km)"
+model<- "Modèle Logarithmique : Y = a.log(X)+b"
+```
+
+### Ajustement
+
+```{r}
+mod3 <- lm(Y~X)
+summary(mod3)
+```
+
+### Visualisation
+
+```{r}
+plot(X,Y,
+     xlab = nomX,
+     ylab = nomY,
+     main = model,
+     pch=20,
+     col="red",
+     cex=0.1,
+     sub = " Source : DVF 2013-2020"
+     )
+
+abline(mod3, col="blue", lwd=2)
+```
+
+
+## Modèle puissance
+
+On teste l'existence d'un modèle puissance en fixant les paramètres suivants :
+
+### Paramètres
+
+```{r}
+Y <-log(map_dvf$prixm2)
+X <-log(map_dvf$dist)
+nomY <- "log(Prix au m2)"
+nomX <- "log(Distance en km)"
+model<- "Modèle Logarithmique : Y = a.log(X)+b"
+```
+
+### Ajustement
+
+```{r}
+mod4 <- lm(Y~X)
+summary(mod4)
+```
+
+### Visualisation
+
+```{r}
+plot(X,Y,
+     xlab = nomX,
+     ylab = nomY,
+     main = model,
+     pch=20,
+     col="red",
+     cex=0.1,
+     sub = " Source : DVF 2013-2020"
+     )
+
+abline(mod4, col="blue", lwd=2)
+```
+
+## Choix du meilleur modèle
+
+On décide ici de retenir le modèle 2 (exponentiel) et de stocker les valeurs estimées et résiduelles des prix au m2.
+
+```{r}
+mod<-mod3
+map_dvf$prixm2_estim <- mod$fitted.values
+map_dvf$prixm2_resid <- mod$residuals
+```
+
+## Agrégation par commune 
+
+On agrège les valeurs estimées et résiduelles par commune
+
+```{r}
+mod_com <- st_drop_geometry(map_dvf) %>%
+              group_by(INSEE_COM) %>%
+              summarise(nb=n(),
+                        prixm2 = mean(prixm2),
+                        prixm2_estim = mean(prixm2_estim),
+                        prixm2_resid = mean(prixm2_resid)) %>%
+              arrange(prixm2_resid)
+
+```
+
+On en déduit les communes où le prix est plus bas que ce que laisserait prévoir la distance au centre :
+
+```{r}
+kable(head(mod_com), digits=0)
+
+```
+
+
+Et celles où le prix est plus élevé que ce que laisserait prévoir la distance au centre 
+
+```{r}
+kable(tail(mod_com),digits=0)
+```
+
+## Cartographie des résultats
+
+En se limitant à l'aire urbaine, on va visualiser les résultats du modèle. On commence par effectuer la jointure entre les résultats du modèle de régression et le fonds de carte des communes : 
+
+```{r}
+map_com<-map_com %>%
+         left_join(mod_com)
+
+```
+
+On peut alors cartographier les prix observés et théoriques :
+
+```{r}
+mybreaks <-c(1000,1500, 1750, 2000, 2250, 2500, 2750,  3000, 6000)
+mypal <- brewer.pal(n = 8, name="YlOrRd")
+
+par(mfrow = c(1,2))
+mf_map(map_com, 
+       type = "choro",
+       var="prixm2_estim",
+       breaks=mybreaks,
+       pal=mypal,
+       leg_val_rnd = 0,
+       col_na = "gray80",
+       leg_pos = "topleft")
+mf_layout("Prix théoriques", 
+          arrow=F, frame=T,
+          credits = "Source : DVF, 2013-2020")
+
+
+mf_map(map_com, 
+       type = "choro",
+       var="prixm2",
+       breaks=mybreaks,
+       pal=mypal,
+       leg_val_rnd = 0,
+        col_na = "gray80",
+       leg_pos = "topleft")
+mf_layout("Prix observés",
+          arrow=F, frame=T,
+          credits = "Source : DVF, 2013-2020")
+```
+
+Et en déduire la carte des résidus :
+
+```{r}
+mybreaks <-c(-700, -500, -300,-100,100,300,500,700)
+mypal <- brewer.pal(n = 7, name="RdBu")
+par(mfrow = c(1,1))
+mf_map(map_com, 
+       type = "choro",
+       var="prixm2_resid",
+       breaks=mybreaks,
+       pal=mypal,
+       col_na = "gray80",
+       leg_val_rnd = 0,
+       leg_pos = "topleft")
+mf_layout("Prix résiduels", 
+          arrow=F, frame=T,
+          credits = "Source : DVF, 2013-2020")
+
+
+```
+
