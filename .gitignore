@@ -50,7 +50,7 @@ rsconnect/
 
 # data files
 
-
+/data2023/
 
 
 /.quarto/

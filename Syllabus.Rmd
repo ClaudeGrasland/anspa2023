@@ -1,0 +1,83 @@
+---
+title: "Semaine mutualisée Master 2 Carthagéo-Géoprisme"
+author: "Hadrien Commenges, Claude Grasland, Pierre Pistre"
+date: "Du 09/10/2023 au 13/10/2023"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r, include=FALSE}
+options(tinytex.verbose = TRUE)
+```
+
+## Objectifs de la semaine
+
+- Développer les connaissances en analyse quantitative des données dans l'espace
+- Exploiter des données individuelles (demandes de valeurs foncières, recensement de la population)
+- Approfondir l'utilisation du logiciel R
+- Travailler en groupe et préparer une restitution commune
+- Répondre à une "commande" dans un temps limité
+
+## Organisation de la semaine
+
+### Planning des intervenants et contenu des journées
+
+- 09/10 (matin, Pierre Pistre) : Organisation de la semaine & présentation des données 
+- 09/10 (après-midi, Claude Grasland) : Prise en main des données de recensement (fichier LOGEMT) 
+- 10/10 (matin, Pierre Pistre) : Prise en main des données de valeurs foncières (DVF) 
+- 10/10 (après-midi, Claude Grasland) : extractions des données pour la commande, et approfondissements statistiques & cartographiques
+- 11/10 : Accompagnement des projets de groupe (Hadrien Commenges)
+- 12/10 : Accompagnement des projets de groupe (Hadrien Commenges)
+- 13/10 : Finalisation des projets de groupe (matin) et restitution orale (après-midi)
+
+### Horaires et planning des salles (Campus des Grands Moulins, Université Paris Cité)
+- Horaires indicatifs : 9h30-12h30 et 13h30-17h.
+- Salles : du 09/10 au 11/10 : salle de cours 209 (Bâtiment Olympe de Gouges, 2ième étage) ; 12/10 : salle informatique 375 (Bâtiment Olympe de Gouges, 3ième étage) ; 13/10 : salle de cours 209 (Bâtiment Olympe de Gouges, 2ième étage) 
+
+## Données utilisées
+
+### (sources) Base de données principales :
+- Fichier "Logements oridinaires" (LOGEMT) 2019 (localisations : IRIS, communes...), produit par l'INSEE à partir du recensement de la population. Données en accés libre : https://www.insee.fr/fr/statistiques/6544344?sommaire=6456104
+- "Demandes de valeurs foncières" (version Etalab et extraction avec Opendatasoft), produit par le Ministère de l'Économie, des Finances et de la Souveraineté industrielle et numérique : https://www.data.gouv.fr/fr/datasets/demandes-de-valeurs-foncieres-geolocalisees/
+
+### (sources) Fichiers complémentaires : 
+- Table d'appartenance géographique des communes (INSEE) : https://www.insee.fr/fr/information/2028028
+- Shapefile ADMIN-EXPRESS-COG® (IGN) des découpage administratifs de la France métropolitaine : https://geoservices.ign.fr/adminexpress#telechargement
+- Shapefile Contours IRIS® (IGN) : https://geoservices.ign.fr/contoursiris
+
+## Exercice d'application en groupe
+
+### Périmètres de l'exercice
+- Objet d'étude : les dynamiques immobilières dans les principales agglomérations administratives de la "mégarégion parisienne" (hors Paris)
+- Population d'étude : les logements vendus récemment et leurs habitants
+- Espace(s) d'étude : les principales agglomérations ayant notamment le statut de "métrople" ou de "communauté urbaine" (hors Paris) 
+- Echelles et mailles géographiques : département, commune, IRIS
+
+### Consignes de la "commande"
+- Contexte général : il est connu que Paris influence la dynamique des territoires bien au-delà de ses territoires les plus proches, à commencer par les principales agglomérations urbaines de la "mégarégion parisienne" (au sens élargi de : https://atlas-paris-mega-region.univ-rouen.fr/). Le secteur immobilier est particulièrement concerné du fait d'une progression sensible des prix des logements dans la plupart de ces territoires au cours à minima de la dernière décennie et d'un potentiel renforcement avec la crise COVID par une progression des installations résidentielles. Pour autant, la géographie des dynamiques immobilières internes à ces agglomérations urbaines reste mal connue de même que les facteurs explicatifs (influence parisienne, spécificités locales et régionales...) et les tendances récentes.
+- Commande : après avoir fait le constat de dynamiques immobilières souvent proches, les principales agglomérations urbaines de la "mégarégion parisienne" ont décidé de s'associer pour demander aux différentes antennes régionales de l'Insee la réalisation d'études rigoureuses et fines spatialement sur la situation immobilière de leurs différents territoires de compétence et périphéries proches. Le bilan de ces études sera présenté dans des publications synthétiques, intelligibles par le plus grand nombre et par les acteurs concernés, sous la forme de plusieurs 4 pages - comme produits régulièrement par l'Insee pour publier les résultats de ses études (par exemple, file:///home/pierre/T%C3%A9l%C3%A9chargements/ip1715.pdf ; file:///home/pierre/T%C3%A9l%C3%A9chargements/IR134_Notaires-IPLA_1T-23.pdf).
+
+### Modalités de l'exercice, restitution du travail et organisation durant la semaine
+1. Constitution de 6 (voire 7) groupes de 4-5 étudiant.e.s, mélangeant les profils de Master (= Lundi matin)
+2. Réflexion sur un angle problématique pour chaque cas d'étude, ainsi que les possibilités d'analyse et d'exploration des données : variables pertinentes, traitements envisagés... (= Lundi à Mercredi)
+3. Réalisation des analyses statistiques et cartographiques (= Mardi à Jeudi)
+4. Organisation, mise en forme des analyses et rédaction de la note écrite (= Mardi à Vendredi matin)
+5. Présentation orale (environ 10 minutes, sans autre support visuel que la note écrite) devant un "jury" composé des intervenants de la semaine (= Vendredi après-midi)  
+
+### Cas d'étude
+- Caen (communauté urbaine)
+- Le Mans (communauté urbaine)
+- Orléans (métropole)
+- Reims (communauté urbaine)
+- Rouen (métropole) 
+- Tours (métropole) 
+
+En option supplémentaire : Amiens (communauté d'agglomération)
+
+### Format du rendu (type 4 pages Insee)
+- Introduction et définition (thématique et statistique) de l'objet  : thème et cas d'étude
+- Etat des lieux général des prix immobiliers dans le cas d'étude (données : DVF ; échelle : "agglomération" (rayon 40km) ; maille : commune)
+- Approfondissements sur les prix immobiliers par type de biens ou de localisation (données : DVF ; échelles : "agglomération" (rayon 40km) et zooms ; mailles : commune, IRIS)
+- Profils des acheteurs au sens des nouveaux arrivants (moins de 3 ans) qui sont propriétaires (données : recensement de la population ; échelles : "agglomération" (rayon 40km) et zooms ; mailles : commune, IRIS)
