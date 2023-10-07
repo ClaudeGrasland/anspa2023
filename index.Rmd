@@ -2026,7 +2026,7 @@ abline(mod4, col="blue", lwd=2)
 On décide ici de retenir le modèle 2 (exponentiel) et de stocker les valeurs estimées et résiduelles des prix au m2.
 
 ```{r}
-mod<-mod3
+mod<-mod2
 map_dvf$prixm2_estim <- mod$fitted.values
 map_dvf$prixm2_resid <- mod$residuals
 ```
