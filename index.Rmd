@@ -1812,9 +1812,9 @@ On se propose d'analyser la variation d'un phénomène quantitatif (le prix de v
 
 ## Formuler l'hypothèse
 
-Soit l'ensemble des ventes effectuées dans un rayon de 50 km autour d'une agglomération. Existe-t-il une relation entre (Y) le prix de vente mesuré en € par m2 de surface habitable et (X) la distance au point central de l'agglomération ? 
+Soit l'ensemble des ventes de **maison** effectuées dans un rayon de 30-50 km autour d'une agglomération. Existe-t-il une relation entre (Y) le prix de vente mesuré en € par m2 de surface habitable et (X) la distance au point central de l'agglomération ? 
 
-N.B. Nous retirons la commune centre de l'analyse car on suppose que son comportement interne obéit à une logique différente
+N.B. Nous ne travaillons que sur les maisons car les appartements sont trop peu nombreux en dehors du centre de l'aire urbaine.
 
 
 ## Définir l'espace d'étude
@@ -1849,7 +1849,7 @@ map_com<-readRDS(paste0(myrep,"AA_mapcom.RDS"))
 
 # Selection des dvf
 dvf<-dvf %>% filter(INSEE_COM %in% map_com$INSEE_COM) %>%
-             filter(INSEE_COM != codectr)
+             filter(type == "Maison")
 
 # Transformation cartographique des dvf
 map_dvf <- st_as_sf(dvf,coords =c("longitude","latitude")) 
@@ -2023,11 +2023,11 @@ abline(mod4, col="blue", lwd=2)
 
 ## Choix du meilleur modèle
 
-On décide ici de retenir le modèle 2 (exponentiel) et de stocker les valeurs estimées et résiduelles des prix au m2.
+On décide ici de retenir le modèle 3 (logarithmique) qui fournit le meilleur ajustement et de stocker les valeurs estimées et résiduelles des prix au m2.
 
 ```{r}
-mod<-mod2
-map_dvf$prixm2_estim <- exp(mod$fitted.values)
+mod<-mod3
+map_dvf$prixm2_estim <- mod$fitted.values
 map_dvf$prixm2_resid <- map_dvf$prixm2-map_dvf$prixm2_estim
 ```
 
@@ -2106,8 +2106,8 @@ mf_layout("Prix observés",
 Et en déduire la carte des résidus :
 
 ```{r}
-mybreaks <-c(-700, -500, -300,-100,100,300,500,700)
-mypal <- brewer.pal(n = 7, name="RdBu")
+mybreaks <-c( -500, -350, -250,-150, -50,50, 150,250, 350, 500)
+mypal <- brewer.pal(n = 9, name="RdBu")
 par(mfrow = c(1,1))
 mf_map(map_com, 
        type = "choro",
@@ -2121,5 +2121,22 @@ mf_layout("Prix résiduels",
           arrow=F, frame=T,
           credits = "Source : DVF, 2013-2020")
 
-
 ```
+
+
+## Zoom sur les communes à fort résidu
+
+### Cesson-Sévigné 
+
+```{r, echo=F}
+knitr::include_graphics("figures/cesson.jpg")
+```
+> Source : [Les Echos, Aoüt 2018](https://www.lesechos.fr/2018/08/immobilier-cesson-sevigne-miser-sur-la-banlieue-chic-de-rennes-998217)
+
+### Chartres de Bretagne
+
+```{r, echo=F}
+knitr::include_graphics("figures/lajanais.jpg")
+```
+
+> Source : [France 3 Bretagne](https://france3-regions.francetvinfo.fr/bretagne/ille-et-vilaine/rennes/la-janais-vue-d-ailleurs-226977.html)

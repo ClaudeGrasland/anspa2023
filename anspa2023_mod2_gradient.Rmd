@@ -70,7 +70,7 @@ map_com<-readRDS(paste0(myrep,"AA_mapcom.RDS"))
 
 # Selection des dvf
 dvf<-dvf %>% filter(INSEE_COM %in% map_com$INSEE_COM) %>%
-             filter(INSEE_COM != codectr)
+             filter(type=="Maison")
 
 # Transformation cartographique des dvf
 map_dvf <- st_as_sf(dvf,coords =c("longitude","latitude")) 
@@ -130,7 +130,7 @@ abline(mod1, col="blue", lwd=2)
 
 ## Modèle exponentiel
 
-On teste l'existence d'un modèle exponetielle en fixant les paramètres suivants :
+On teste l'existence d'un modèle exponentiel en fixant les paramètres suivants :
 
 ### Paramètres
 
@@ -244,7 +244,7 @@ abline(mod4, col="blue", lwd=2)
 
 ## Choix du meilleur modèle
 
-On décide ici de retenir le modèle 2 (exponentiel) et de stocker les valeurs estimées et résiduelles des prix au m2.
+On décide ici de retenir le modèle 3 (exponentiel) et de stocker les valeurs estimées et résiduelles des prix au m2.
 
 ```{r}
 mod<-mod3
