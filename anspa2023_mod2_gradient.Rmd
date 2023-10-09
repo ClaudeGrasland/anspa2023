@@ -26,16 +26,15 @@ myrep <-"data/Rennes/"
 ```
 
 
-# MOD2 : Analyse spatiale / Gradient
+# MOD3 : Analyse territoriale / Anova
 
-On se propose d'analyser la variation d'un phénomène quantitatif (le prix de vente des maisons en € par m2) en fonction de la distance à un point remarquable (le centre de l'agglomération). On fait l'hypothèse que ce prix correspond à un **gradient de décroissance**, conformément aux théories de la rente foncière. Pour modéliser ce gradient, nous ferons appels à un **modèle de régression** linéaire ou non-linéaire.
+On se propose d'analyser la variation d'un phénomène quantitatif (le prix de vente des maisons en € par m2) en fonction de l'**appartenance à un territoire** c'est à dire une variable qualitative comportant deux modalités ou plus. 
 
 
 ## Formuler l'hypothèse
 
-Soit l'ensemble des ventes effectuées dans un rayon de 50 km autour d'une agglomération. Existe-t-il une relation entre (Y) le prix de vente mesuré en € par m2 de surface habitable et (X) la distance au point central de l'agglomération ? 
+Soit l'ensemble des ventes effectuées dans une agglomération. Existe-t-il une relation entre (Y) le prix de vente mesuré en € par m2 de surface habitable et le fait d'être situé dans la commune-centre, l'EPCI ou l'aire urbaine ? 
 
-N.B. Nous retirons la commune centre de l'analyse car on suppose que son comportement interne obéit à une logique différente
 
 
 ## Définir l'espace d'étude

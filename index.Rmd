@@ -1805,7 +1805,7 @@ A vous de deviner pourquoi :-)
 
 
 
-# MOD2 : Analyse spatiale / Gradient
+# MOD2 : Analyse spatiale / Régression
 
 On se propose d'analyser la variation d'un phénomène quantitatif (le prix de vente des maisons en € par m2) en fonction de la distance à un point remarquable (le centre de l'agglomération). On fait l'hypothèse que ce prix correspond à un **gradient de décroissance**, conformément aux théories de la rente foncière. Pour modéliser ce gradient, nous ferons appels à un **modèle de régression** linéaire ou non-linéaire.
 
@@ -1900,7 +1900,7 @@ plot(X,Y,
      pch=20,
      col="red",
      cex=0.1,
-     sub = " Source : DVF 2013-2020"
+     sub = " Source : DVF 2014-2021"
      )
 
 abline(mod1, col="blue", lwd=2)
@@ -1938,7 +1938,7 @@ plot(X,Y,
      pch=20,
      col="red",
      cex=0.1,
-     sub = " Source : DVF 2013-2020"
+     sub = " Source : DVF 2014-2021"
      )
 
 abline(mod2, col="blue", lwd=2)
@@ -1977,7 +1977,7 @@ plot(X,Y,
      pch=20,
      col="red",
      cex=0.1,
-     sub = " Source : DVF 2013-2020"
+     sub = " Source : DVF 2014-2021"
      )
 
 abline(mod3, col="blue", lwd=2)
@@ -2015,7 +2015,7 @@ plot(X,Y,
      pch=20,
      col="red",
      cex=0.1,
-     sub = " Source : DVF 2013-2020"
+     sub = " Source : DVF 2014-2021"
      )
 
 abline(mod4, col="blue", lwd=2)
@@ -2087,7 +2087,7 @@ mf_map(map_com,
        leg_pos = "topleft")
 mf_layout("Prix théoriques", 
           arrow=F, frame=T,
-          credits = "Source : DVF, 2013-2020")
+          credits = "Source : DVF, 2014-2021")
 
 
 mf_map(map_com, 
@@ -2100,7 +2100,7 @@ mf_map(map_com,
        leg_pos = "topleft")
 mf_layout("Prix observés",
           arrow=F, frame=T,
-          credits = "Source : DVF, 2013-2020")
+          credits = "Source : DVF, 2014-2021")
 ```
 
 Et en déduire la carte des résidus :
@@ -2119,7 +2119,7 @@ mf_map(map_com,
        leg_pos = "topleft")
 mf_layout("Prix résiduels", 
           arrow=F, frame=T,
-          credits = "Source : DVF, 2013-2020")
+          credits = "Source : DVF, 2014-2021")
 
 ```
 
@@ -2133,10 +2133,281 @@ knitr::include_graphics("figures/cesson.jpg")
 ```
 > Source : [Les Echos, Aoüt 2018](https://www.lesechos.fr/2018/08/immobilier-cesson-sevigne-miser-sur-la-banlieue-chic-de-rennes-998217)
 
-### Chartres de Bretagne
+### St Jacques de la Lande
 
 ```{r, echo=F}
 knitr::include_graphics("figures/lajanais.jpg")
 ```
 
 > Source : [France 3 Bretagne](https://france3-regions.francetvinfo.fr/bretagne/ille-et-vilaine/rennes/la-janais-vue-d-ailleurs-226977.html)
+
+---
+
+# MOD3 : Analyse territoriale / Anova
+
+On se propose d'analyser la variation d'un phénomène quantitatif (le prix de vente des maisons en € par m2) en fonction de l'**appartenance à un territoire** c'est à dire une variable qualitative comportant deux modalités ou plus. 
+
+
+## Formuler l'hypothèse
+
+Soit l'ensemble des ventes effectuées dans une agglomération. Existe-t-il une relation entre le prix ou la surface des logements et le fait d'être situé dans la commune-centre, l'EPCI ou l'aire urbaine ? 
+
+
+
+## Définir l'espace d'étude
+
+Nous considérons l'ensemble des ventes dans un rayon de 50 km 
+
+```{r paramanova, echo=T}
+# Commune centre 
+codectr<-  "35238"  # Code
+namectr <- "Rennes"  # Nom
+
+# Choix du rayon de collecte des dvf (en mètres)
+rayon <- 50000
+
+# Dossier de stockage
+myrep <- "data/Rennes/"
+
+# Fichier dvf nettoyé
+mydvf <-"dvf_clean.RDS"
+```
+
+## Définit les types de territoire
+
+On doit ajouter à notre fichier dvf une variable définissant l'appartenance à chaque type de territoire
+
+```{r}
+## Fichier des dvf
+dvf<-readRDS(paste0(myrep,mydvf))
+
+# Cartes
+CTR_com<-readRDS(paste0(myrep,"CTR_mapcom.RDS"))
+EPCI_com<-readRDS(paste0(myrep,"EPCI_mapcom.RDS"))
+AA_com<-readRDS(paste0(myrep,"AA_mapcom.RDS"))
+
+# Appartenances
+dvf$CTR <- dvf$INSEE_COM %in%CTR_com$INSEE_COM
+dvf$EPCI <- dvf$INSEE_COM %in%EPCI_com$INSEE_COM
+dvf$AA <- dvf$INSEE_COM %in%AA_com$INSEE_COM
+
+# Typologie
+dvf$TYPO <-as.factor(dvf$CTR+dvf$EPCI+dvf$AA)
+levels(dvf$TYPO)<-c("Marges","Agglo.","EPCI","Centre")
+
+# Effectif
+table(dvf$TYPO)
+```
+
+
+## Surface / Territoire
+
+### Maison
+
+```{r}
+dvf2 <- dvf %>% filter(type=="Maison")
+Y <- dvf2$surface
+X <-dvf2$TYPO
+nomY <- "Surface"
+nomX <- "Type d'espace"
+titre<- "Ventes de maisons"
+
+min<-tapply(Y,X,min)
+Q1 <- tapply(Y,X,quantile,0.25)
+mediane<-tapply(Y,X,quantile, 0.5)
+Q1 <- tapply(Y,X,quantile,0.25)
+Q3<-tapply(Y,X,quantile, 0.75)
+max<-tapply(Y,X,max)
+moyenne<-tapply(Y,X,mean)
+ectype <-tapply(Y,X,sd)
+tab<-cbind(min,Q1,mediane,Q3,max,moyenne,ectype)
+kable(tab,digits=0)
+
+mod1 <- lm(log(Y)~X)
+summary(mod1)
+
+boxplot(Y~X, horizontal=T, 
+        log="x",
+        col=c("lightgreen","lightyellow","orange","red"),
+        xlab=nomY,
+        ylab=nomX,
+        main = titre,
+        sub = "Source : DVF 2014-2021")
+```
+
+### Appartement
+
+```{r}
+dvf2 <- dvf %>% filter(type=="Appartement")
+Y <-dvf2$surface
+X <-dvf2$TYPO
+nomY <- "Surface"
+nomX <- "Type d'espace"
+titre<- "Ventes d'appartements"
+
+min<-tapply(Y,X,min)
+Q1 <- tapply(Y,X,quantile,0.25)
+mediane<-tapply(Y,X,quantile, 0.5)
+Q1 <- tapply(Y,X,quantile,0.25)
+Q3<-tapply(Y,X,quantile, 0.75)
+max<-tapply(Y,X,max)
+moyenne<-tapply(Y,X,mean)
+ectype <-tapply(Y,X,sd)
+tab<-cbind(min,Q1,mediane,Q3,max,moyenne,ectype)
+kable(tab,digits=0)
+
+mod1 <- lm(log(Y)~X)
+summary(mod1)
+
+boxplot(Y~X, 
+        horizontal=T, 
+        log="x",
+        col=c("lightgreen","lightyellow","orange","red"),
+        xlab=nomY,
+        ylab=nomX,
+        main = titre,
+        sub = "Source : DVF 2014-2021")
+```
+
+
+## Prix / Territoire
+
+### Maison
+
+```{r}
+dvf2 <- dvf %>% filter(type=="Maison")
+Y <- dvf2$prix
+X <-dvf2$TYPO
+nomY <- "Prix total"
+nomX <- "Type d'espace"
+titre<- "Ventes de maisons"
+
+min<-tapply(Y,X,min)
+Q1 <- tapply(Y,X,quantile,0.25)
+mediane<-tapply(Y,X,quantile, 0.5)
+Q1 <- tapply(Y,X,quantile,0.25)
+Q3<-tapply(Y,X,quantile, 0.75)
+max<-tapply(Y,X,max)
+moyenne<-tapply(Y,X,mean)
+ectype <-tapply(Y,X,sd)
+tab<-cbind(min,Q1,mediane,Q3,max,moyenne,ectype)
+kable(tab,digits=0)
+
+mod1 <- lm(log(Y)~X)
+summary(mod1)
+
+boxplot(Y~X, horizontal=T, 
+        log="x",
+        col=c("lightgreen","lightyellow","orange","red"),
+        xlab=nomY,
+        ylab=nomX,
+        main = titre,
+        sub = "Source : DVF 2014-2021")
+```
+
+### Appartement
+
+```{r}
+dvf2 <- dvf %>% filter(type=="Appartement")
+Y <-dvf2$prix
+X <-dvf2$TYPO
+nomY <- "Prix total"
+nomX <- "Type d'espace"
+titre<- "Ventes d'appartements"
+
+min<-tapply(Y,X,min)
+Q1 <- tapply(Y,X,quantile,0.25)
+mediane<-tapply(Y,X,quantile, 0.5)
+Q1 <- tapply(Y,X,quantile,0.25)
+Q3<-tapply(Y,X,quantile, 0.75)
+max<-tapply(Y,X,max)
+moyenne<-tapply(Y,X,mean)
+ectype <-tapply(Y,X,sd)
+tab<-cbind(min,Q1,mediane,Q3,max,moyenne,ectype)
+kable(tab,digits=0)
+
+mod1 <- lm(log(Y)~X)
+summary(mod1)
+
+boxplot(Y~X, 
+        horizontal=T, 
+        log="x",
+        col=c("lightgreen","lightyellow","orange","red"),
+        xlab=nomY,
+        ylab=nomX,
+        main = titre,
+        sub = "Source : DVF 2014-2021")
+```
+
+
+
+## Prix au m2 / Territoire
+
+### Maison
+
+```{r}
+dvf2 <- dvf %>% filter(type=="Maison")
+Y <- dvf2$prixm2
+X <-dvf2$TYPO
+nomY <- "Prix au m2"
+nomX <- "Type d'espace"
+titre<- "Ventes de maisons"
+
+min<-tapply(Y,X,min)
+Q1 <- tapply(Y,X,quantile,0.25)
+mediane<-tapply(Y,X,quantile, 0.5)
+Q1 <- tapply(Y,X,quantile,0.25)
+Q3<-tapply(Y,X,quantile, 0.75)
+max<-tapply(Y,X,max)
+moyenne<-tapply(Y,X,mean)
+ectype <-tapply(Y,X,sd)
+tab<-cbind(min,Q1,mediane,Q3,max,moyenne,ectype)
+kable(tab,digits=0)
+
+mod1 <- lm(log(Y)~X)
+summary(mod1)
+
+boxplot(Y~X, horizontal=T, 
+        log="x",
+        col=c("lightgreen","lightyellow","orange","red"),
+        xlab=nomY,
+        ylab=nomX,
+        main = titre,
+        sub = "Source : DVF 2014-2021")
+```
+
+### Appartement
+
+```{r}
+dvf2 <- dvf %>% filter(type=="Appartement")
+Y <-dvf2$prixm2
+X <-dvf2$TYPO
+nomY <- "Prix au m2"
+nomX <- "Type d'espace"
+titre<- "Ventes d'appartements"
+
+min<-tapply(Y,X,min)
+Q1 <- tapply(Y,X,quantile,0.25)
+mediane<-tapply(Y,X,quantile, 0.5)
+Q1 <- tapply(Y,X,quantile,0.25)
+Q3<-tapply(Y,X,quantile, 0.75)
+max<-tapply(Y,X,max)
+moyenne<-tapply(Y,X,mean)
+ectype <-tapply(Y,X,sd)
+tab<-cbind(min,Q1,mediane,Q3,max,moyenne,ectype)
+kable(tab,digits=0)
+
+mod1 <- lm(log(Y)~X)
+summary(mod1)
+
+boxplot(Y~X, 
+        horizontal=T, 
+        log="x",
+        col=c("lightgreen","lightyellow","orange","red"),
+        xlab=nomY,
+        ylab=nomX,
+        main = titre,
+        sub = "Source : DVF 2014-2021")
+
+
+```
